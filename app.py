@@ -10,11 +10,13 @@ import cv2
 import numpy as np
 from flask import Flask, jsonify, render_template, request
 from PIL import Image
+from flask_cors import CORS
 
 from inference import CLASS_NAMES, TILE_SIZE, run_inference
 from usi_score import compute_usi
 
 app = Flask(__name__)
+CORS(app)
 
 UPLOAD_FOLDER = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -91,7 +93,7 @@ def generate_grid_preview(image_path: str, inference_results: dict) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 @app.route("/")
 def index():
-    return render_template("index.html", class_colors=CLASS_COLORS,
+    return render_template("./index.html", class_colors=CLASS_COLORS,
                            class_names=CLASS_NAMES)
 
 
@@ -103,6 +105,8 @@ def predict():
     file = request.files["image"]
     if file.filename == "":
         return jsonify({"error": "Empty filename"}), 400
+    
+    selected_type = request.form.get("type", "urban") 
 
     # ── Save uploaded image ───────────────────────────────────────────────────
     ext      = os.path.splitext(file.filename)[1].lower() or ".jpg"
@@ -113,7 +117,7 @@ def predict():
     try:
         # ── Run inference ─────────────────────────────────────────────────────
         inference_results = run_inference(filepath, tile_size=TILE_SIZE)
-        usi               = compute_usi(inference_results)
+        usi               = compute_usi(inference_results, selected_type=selected_type)
 
         # ── Generate visualisations ───────────────────────────────────────────
         land_cover_b64 = generate_land_cover_map(inference_results)
